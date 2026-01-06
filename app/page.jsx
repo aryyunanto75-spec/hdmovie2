@@ -19,13 +19,13 @@ export default function About() {
         <div className="container mx-auto px-4 text-center relative z-10">
           <div className="inline-flex items-center gap-2 bg-orange-500/20 px-4 py-2 rounded-full mb-6 border border-orange-500/30">
             <FaAward className="text-orange-400" />
-            <span className="text-orange-300 font-semibold">United States of America's #1 Movie Database</span>
+            <span className="text-white font-semibold">United States of America's #1 Movie Database</span>
           </div>
           
           <h1 className="text-5xl md:text-7xl font-extrabold mb-6 bg-gradient-to-r from-orange-400 via-yellow-400 to-orange-400 bg-clip-text text-transparent">
             Hdmovie2
           </h1>
-          <p className="text-2xl md:text-3xl font-light mb-4 text-gray-200">
+          <p className="text-2xl md:text-3xl font-light mb-4 text-orange-200">
             Ultimate Movie & TV Series Database
           </p>
           <p className="text-lg md:text-xl text-gray-300 mb-8 max-w-4xl mx-auto leading-relaxed">
