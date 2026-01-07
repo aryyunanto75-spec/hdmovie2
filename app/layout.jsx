@@ -9,7 +9,7 @@ export const metadata = {
   openGraph: {
     title: 'Hdmovie2 | Watch Movie Stream Movies and Tv Series Free',
     description: 'Hdmovie2 is your one-stop destination for free movies, TV shows, and web series. Download thousands of titles in HD quality, with unlimited access to the latest blockbusters and trending series. Start your free entertainment journey today! ',
-    url: 'https://hdmovie2-us.netlify.app',
+    url: 'https://hdmovie2-uk.netlify.app',
     siteName: 'Hdmovie2',
     images: [
       {
@@ -54,7 +54,7 @@ export default function RootLayout({ children }) {
             </main>
             <footer className="w-full max-w-7xl mx-auto px-4 py-8">
               {/* Tempatkan div Native Banner di sini, sebelum Footer */}
-              <div id="container-21f2f7685deff9370130044255cf426e"></div>
+              <div id="container-ffe26a7a84cd3722c905ac346ea4d0b1"></div>
               <Footer />
             </footer>
           </div>
