@@ -1,51 +1,109 @@
 "use client";
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export default function AdsterraLayoutWrapper({ children }) {
+  const scriptsLoaded = useRef(false);
+  const retryCount = useRef(0);
+  const MAX_RETRIES = 2; // 2 retries cukup
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const handleClick = (e) => {
-        const targetUrl = window.location.href;
+      let timer;
+
+      // ✅ SKRIPT IKLAN GOMOVIES123 (SUDAH BENAR!)
+      const scripts = [
+        {
+          id: 'adsterra-native-banner',
+          src: '//fundingfashioned.com/ae067c1fe6d2e43f32b30f43ee3516d5/invoke.js',
+          attributes: { 'data-cfasync': 'false' }
+        },
+        {
+          id: 'adsterra-popunder', 
+          src: '//fundingfashioned.com/90/1e/d2/901ed2769098cdc727003fe36412e024.js'
+        },
+        {
+          id: 'adsterra-social-bar',
+          src: '//fundingfashioned.com/52/cc/03/52cc03cf4af4c86fe0e87185cb1f75ab.js'
+        }
+      ];
+
+      const loadScripts = () => {
+        // Cek jika sudah dimuat
+        if (scriptsLoaded.current) return;
+        
+        scripts.forEach(scriptConfig => {
+          // Skip jika sudah ada
+          if (document.getElementById(scriptConfig.id)) return;
+
+          const script = document.createElement('script');
+          script.id = scriptConfig.id;
+          script.src = scriptConfig.src;
+          script.async = true;
+
+          // Set attributes
+          if (scriptConfig.attributes) {
+            Object.entries(scriptConfig.attributes).forEach(([key, value]) => {
+              script.setAttribute(key, value);
+            });
+          }
+
+          // ✅ RETRY MECHANISM (dari versi lama)
+          script.onerror = () => {
+            console.error(`❌ ${scriptConfig.id} failed to load`);
+            retryCount.current++;
+            if (retryCount.current <= MAX_RETRIES) {
+              console.log(`🔄 Retrying ${scriptConfig.id}... (${retryCount.current}/${MAX_RETRIES})`);
+              setTimeout(loadScripts, 1000 * retryCount.current);
+            }
+          };
+
+          script.onload = () => {
+            console.log(`✅ ${scriptConfig.id} loaded`);
+          };
+
+          document.body.appendChild(script);
+        });
+
+        scriptsLoaded.current = true;
+        console.log('🎉 All Adsterra scripts loaded');
       };
-  
-      window.addEventListener('click', handleClick);
 
-      // Memuat skrip iklan Native Banner
-      const nativeBannerScript = document.createElement('script');
-      nativeBannerScript.src = "//eminencehillsidenutrition.com/a9dce3a8ac7a8f548d4f4ea5ed12df3a/invoke.js";
-      nativeBannerScript.async = true;
-      nativeBannerScript.setAttribute('data-cfasync', 'false'); // ✅ DITAMBAHKAN KEMBALI
-      document.body.appendChild(nativeBannerScript);
+      // Delay initial load
+      timer = setTimeout(loadScripts, 1500);
 
-      // Memuat skrip iklan Popunder
-      const popunderScript = document.createElement('script');
-      popunderScript.type = 'text/javascript';
-      popunderScript.src = "//eminencehillsidenutrition.com/e0/f8/35/e0f83591c34e956e825dd77e782c86d3.js";
-      popunderScript.async = true;
-      popunderScript.setAttribute('data-cfasync', 'false'); // ✅ JUGA DITAMBAHKAN UNTUK POPUNDER
-      document.body.appendChild(popunderScript);
+      // ✅ USER INTERACTION TRIGGER (dari versi lama)
+      const handleInteraction = () => {
+        if (!scriptsLoaded.current) {
+          loadScripts();
+        }
+      };
 
-      // Memuat skrip iklan Social Bar
-      const socialBarScript = document.createElement('script');
-      socialBarScript.type = 'text/javascript';
-      socialBarScript.src = "//eminencehillsidenutrition.com/cb/e0/05/cbe005efaae7ab20e3faa2899671b795.js";
-      socialBarScript.async = true;
-      socialBarScript.setAttribute('data-cfasync', 'false'); // ✅ JUGA DITAMBAHKAN UNTUK SOCIAL BAR
-      document.body.appendChild(socialBarScript);
-  
+      // Attach listeners dengan once
+      ['click', 'scroll', 'touchstart'].forEach(event => {
+        window.addEventListener(event, handleInteraction, { once: true });
+      });
+
       return () => {
-        window.removeEventListener('click', handleClick);
-        document.body.removeChild(nativeBannerScript);
-        document.body.removeChild(popunderScript);
-        document.body.removeChild(socialBarScript);
+        clearTimeout(timer);
+        
+        // Remove listeners
+        ['click', 'scroll', 'touchstart'].forEach(event => {
+          window.removeEventListener(event, handleInteraction);
+        });
+
+        // Cleanup scripts
+        scripts.forEach(scriptConfig => {
+          const script = document.getElementById(scriptConfig.id);
+          if (script?.parentNode) {
+            script.parentNode.removeChild(script);
+          }
+        });
+        
+        scriptsLoaded.current = false;
       };
     }
   }, []);
 
-  return (
-    <>
-      {children}
-    </>
-  );
+  return <>{children}</>;
 }
