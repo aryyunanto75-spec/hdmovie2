@@ -11,11 +11,11 @@ export default function AdsterraLayoutWrapper({ children }) {
     if (typeof window !== 'undefined') {
       let timer;
 
-      // ✅ SKRIPT IKLAN GOMOVIES123 (SUDAH BENAR!)
+      // ✅ SKRIPT IKLAN HDMOVIE2 (SUDAH BENAR!)
       const scripts = [
         {
           id: 'adsterra-native-banner',
-          src: '//fundingfashioned.com/ffe26a7a84cd3722c905ac346ea4d0b1/invoke.js',
+          src: '//fundingfashioned.com/e744c8cfb1f18a65e45ce887f6801040/invoke.js',
           attributes: { 'data-cfasync': 'false' }
         },
         {
