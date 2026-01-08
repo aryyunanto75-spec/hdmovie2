@@ -41,7 +41,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
 	  <head>
         {/* Tag verifikasi Google Search Console */}
-        <meta name="google-site-verification" content="ovyc2n48CimcPYHwfX1oGEJQwWZYyO-9XXpf3LivRuo" />
+        <meta name="google-site-verification" content="xpdWaE26t_teP672MbP02yUi2aNbH65Cpz9hk0ATo5o" />
       </head>
       <body>
         <AdsterraLayoutWrapper>
@@ -54,7 +54,7 @@ export default function RootLayout({ children }) {
             </main>
             <footer className="w-full max-w-7xl mx-auto px-4 py-8">
               {/* Tempatkan div Native Banner di sini, sebelum Footer */}
-              <div id="container-ffe26a7a84cd3722c905ac346ea4d0b1"></div>
+              <div id="container-e744c8cfb1f18a65e45ce887f6801040"></div>
               <Footer />
             </footer>
           </div>
