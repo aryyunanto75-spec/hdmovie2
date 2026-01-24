@@ -39,8 +39,8 @@ export async function generateMetadata({ params }) {
   if (CATEGORIES.includes(slug)) {
     const title = slug.replace(/_/g, ' ').toUpperCase();
     return {
-      title: `Hdmovie2 - ${title} Movies`,
-      description: `Explore the ${title} movies collection on Hdmovie2.`,
+      title: `HDMovie2 - ${title} Movies`,
+      description: `Explore the ${title} movies collection on HDMovie2.`,
     };
   }
 
@@ -51,8 +51,8 @@ export async function generateMetadata({ params }) {
     const genres = await getMovieGenres();
     const genreName = genres.find(g => g.id == genreId)?.name || 'Unknown';
     return {
-      title: `Hdmovie2 - ${genreName} Movies`,
-      description: `Discover ${genreName} movies on Hdmovie2.`,
+      title: `HDMovie2 - ${genreName} Movies`,
+      description: `Discover ${genreName} movies on HDMovie2.`,
     };
   }
 
@@ -83,7 +83,7 @@ export async function generateMetadata({ params }) {
   // Jika data tidak ditemukan, kembalikan metadata dasar
   if (!movieData) {
     return {
-      title: 'Hdmovie2',
+      title: 'HDMovie2',
       description: 'Find your favorite movies to stream.',
     };
   }
@@ -99,13 +99,13 @@ export async function generateMetadata({ params }) {
   const socialImageAlt = `${movieData.title} poster`;
 
   return {
-    title: `Hdmovie2 - ${movieData.title}`,
+    title: `HDMovie2 - ${movieData.title}`,
     description: movieData.overview || `Detailed information for movie ${movieData.title}`,
     openGraph: {
       title: movieData.title,
       description: movieData.overview || `Detailed information for movie ${movieData.title}`,
       url: `https://hdmovie2-uk.netlify.app/movie/${slug}`,
-      siteName: 'Hdmovie2',
+      siteName: 'HDMovie2',
       images: [
         {
           url: socialImage,

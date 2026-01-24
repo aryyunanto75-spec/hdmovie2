@@ -1,19 +1,11 @@
-// lib/api.jsx
+// api.js
 
 const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY;
-const apiUrl = process.env.NEXT_PUBLIC_TMDB_API_URL || 'https://api.themoviedb.org/3';
+const apiUrl = process.env.NEXT_PUBLIC_TMDB_API_URL;
 
-// Debug API configuration
-console.log('TMDB API Configuration:', {
-  hasApiKey: !!apiKey,
-  apiKeyLength: apiKey ? apiKey.length : 0,
-  apiUrl: apiUrl
-});
-
-// Fungsi helper untuk fetch data yang lebih robust
+// Fungsi helper untuk fetch data
 const fetchApi = async (path, options = {}) => {
-  if (!apiKey) {
-    console.error('API Key Error: NEXT_PUBLIC_TMDB_API_KEY is not configured');
+  if (!apiKey || !apiUrl) {
     throw new Error('API keys are not configured. Please check your .env.local file.');
   }
 
@@ -21,58 +13,27 @@ const fetchApi = async (path, options = {}) => {
   const separator = path.includes('?') ? '&' : '?';
   const url = `${apiUrl}${path}${separator}api_key=${apiKey}&language=en-US`;
   
-  // Log URL tanpa API key untuk keamanan
-  console.log('Fetching from:', url.replace(apiKey, '[REDACTED]'));
+  const res = await fetch(url, {
+    cache: 'no-store',
+    ...options,
+  });
 
-  try {
-    const res = await fetch(url, {
-      cache: 'no-store',
-      headers: {
-        'Accept': 'application/json',
-        ...options.headers,
-      },
-      ...options,
-    });
-
-    // Cek content type
-    const contentType = res.headers.get('content-type');
-    const isJson = contentType && contentType.includes('application/json');
-
-    if (!res.ok) {
-      // Jika response JSON, parse sebagai JSON
-      if (isJson) {
-        try {
-          const errorData = await res.json();
-          throw new Error(`API Error ${res.status}: ${errorData.status_message || res.statusText}`);
-        } catch (jsonError) {
-          throw new Error(`API Error ${res.status}: ${res.statusText}`);
-        }
-      } else {
-        // Jika bukan JSON, ambil sebagai text
-        const errorText = await res.text();
-        console.error('Non-JSON Error Response (first 300 chars):', errorText.substring(0, 300));
-        throw new Error(`API Error ${res.status}: ${res.statusText} - Received HTML response`);
-      }
+  if (!res.ok) {
+    const errorText = await res.text();
+    let errorMessage = `API Error: ${res.status} ${res.statusText}`;
+    
+    try {
+      const errorData = JSON.parse(errorText);
+      errorMessage = `API Error: ${errorData.status_message || errorMessage}`;
+    } catch {
+      // Jika response bukan JSON, gunakan teks biasa
+      errorMessage = `API Error: ${res.status} ${res.statusText} - ${errorText}`;
     }
-
-    // Pastikan response adalah JSON
-    if (!isJson) {
-      const textResponse = await res.text();
-      console.error('Expected JSON but got:', contentType);
-      console.error('Response sample:', textResponse.substring(0, 300));
-      throw new Error('API returned non-JSON response');
-    }
-
-    return await res.json();
-  } catch (error) {
-    console.error('Fetch API Error:', error.message);
-    // Re-throw error dengan context lebih jelas
-    if (error.message.includes('API returned non-JSON') || 
-        error.message.includes('Received HTML response')) {
-      throw new Error(`TMDB API configuration issue. Check your API key and network. Original: ${error.message}`);
-    }
-    throw error;
+    
+    throw new Error(errorMessage);
   }
+
+  return res.json();
 };
 
 // Fungsi untuk mendapatkan film berdasarkan ID
@@ -170,7 +131,7 @@ export async function searchMoviesAndTv(query, page = 1) {
   }
   
   try {
-    const data = await fetchApi(`/search/multi?query=${encodeURIComponent(query.trim())}&page=${page}`);
+    const data = await fetchApi(`/search/multi?query=${encodeURIComponent(query)}&page=${page}`);
     return data.results || [];
   } catch (error) {
     console.error(`Error fetching search results for query '${query}':`, error.message);
@@ -229,7 +190,7 @@ export const getMovieByTitle = async (title) => {
   }
   
   try {
-    const data = await fetchApi(`/search/movie?query=${encodeURIComponent(title.trim())}`);
+    const data = await fetchApi(`/search/movie?query=${encodeURIComponent(title)}`);
     return data.results && data.results.length > 0 ? data.results : null;
   } catch (error) {
     console.error(`Error fetching movie by title: ${title}`, error.message);
@@ -244,7 +205,7 @@ export const getTvSeriesByTitle = async (title) => {
   }
   
   try {
-    const data = await fetchApi(`/search/tv?query=${encodeURIComponent(title.trim())}`);
+    const data = await fetchApi(`/search/tv?query=${encodeURIComponent(title)}`);
     return data.results && data.results.length > 0 ? data.results : null;
   } catch (error) {
     console.error(`Error fetching TV series by title: ${title}`, error.message);
@@ -300,7 +261,6 @@ export async function getTvSeriesByGenre(genreId, page = 1) {
 export async function getTrendingMoviesDaily(page = 1) {
   try {
     const data = await fetchApi(`/trending/movie/day?page=${page}`);
-    console.log(`Fetched ${data.results?.length || 0} trending movies`);
     return data.results || [];
   } catch (error) {
     console.error('Error fetching daily trending movies:', error.message);
@@ -312,7 +272,6 @@ export async function getTrendingMoviesDaily(page = 1) {
 export async function getTrendingTvSeriesDaily(page = 1) {
   try {
     const data = await fetchApi(`/trending/tv/day?page=${page}`);
-    console.log(`Fetched ${data.results?.length || 0} trending TV series`);
     return data.results || [];
   } catch (error) {
     console.error('Error fetching daily trending TV series:', error.message);
@@ -320,28 +279,212 @@ export async function getTrendingTvSeriesDaily(page = 1) {
   }
 }
 
-// Fungsi untuk mendapatkan film berdasarkan keyword ID (erotic)
-export async function getMoviesByKeyword(keywordId = 256466, page = 1) {
+// FUNGSI BARU UNTUK STRATEGI KONTEN
+
+// Fungsi untuk mendapatkan film berdasarkan tahun rilis
+export async function getMoviesByYear(year, page = 1) {
   try {
-    console.log(`Fetching movies by keyword: ${keywordId}, page: ${page}`);
-    const data = await fetchApi(`/discover/movie?with_keywords=${keywordId}&page=${page}`);
-    console.log(`Movies by keyword result:`, data.results?.length || 0);
+    const data = await fetchApi(`/discover/movie?primary_release_year=${year}&page=${page}`);
     return data.results || [];
   } catch (error) {
-    console.error(`Error fetching movies by keyword ID ${keywordId}:`, error.message);
+    console.error(`Error fetching movies from year ${year}:`, error.message);
     return [];
   }
 }
 
-// Fungsi untuk mendapatkan film dari list ID (adult)
-export async function getMoviesByList(listId = "143347", page = 1) {
+// Fungsi untuk mendapatkan film berdasarkan dekade
+export async function getMoviesByDecade(decade, page = 1) {
   try {
-    console.log(`Fetching movies from list: ${listId}, page: ${page}`);
-    const data = await fetchApi(`/list/${listId}?page=${page}`);
-    console.log(`Movies from list result:`, data.items?.length || 0);
-    return data.items || [];
+    let startYear, endYear;
+    
+    switch(decade) {
+      case '2020s':
+        startYear = 2020;
+        endYear = 2029;
+        break;
+      case '2010s':
+        startYear = 2010;
+        endYear = 2019;
+        break;
+      case '2000s':
+        startYear = 2000;
+        endYear = 2009;
+        break;
+      case '1990s':
+        startYear = 1990;
+        endYear = 1999;
+        break;
+      case '1980s':
+        startYear = 1980;
+        endYear = 1989;
+        break;
+      default:
+        startYear = 2020;
+        endYear = 2029;
+    }
+    
+    const data = await fetchApi(`/discover/movie?primary_release_date.gte=${startYear}-01-01&primary_release_date.lte=${endYear}-12-31&page=${page}`);
+    return data.results || [];
   } catch (error) {
-    console.error(`Error fetching movies from list ID ${listId}:`, error.message);
+    console.error(`Error fetching movies from ${decade}:`, error.message);
+    return [];
+  }
+}
+
+// Fungsi untuk mendapatkan detail aktor/people
+export async function getPersonById(personId) {
+  try {
+    const data = await fetchApi(`/person/${personId}`);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching person details for ID ${personId}:`, error.message);
+    return null;
+  }
+}
+
+// Fungsi untuk mendapatkan filmografi aktor
+export async function getPersonMovieCredits(personId) {
+  try {
+    const data = await fetchApi(`/person/${personId}/movie_credits`);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching movie credits for person ID ${personId}:`, error.message);
+    return null;
+  }
+}
+
+// Fungsi untuk mendapatkan kredit TV series aktor
+export async function getPersonTvCredits(personId) {
+  try {
+    const data = await fetchApi(`/person/${personId}/tv_credits`);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching TV credits for person ID ${personId}:`, error.message);
+    return null;
+  }
+}
+
+// Fungsi untuk mencari aktor/people
+export async function searchPeople(query, page = 1) {
+  if (!query || query.trim() === '') {
+    return [];
+  }
+  
+  try {
+    const data = await fetchApi(`/search/person?query=${encodeURIComponent(query)}&page=${page}`);
+    return data.results || [];
+  } catch (error) {
+    console.error(`Error searching people for query '${query}':`, error.message);
+    return [];
+  }
+}
+
+// Fungsi untuk mendapatkan aktor populer
+export async function getPopularPeople(page = 1) {
+  try {
+    const data = await fetchApi(`/person/popular?page=${page}`);
+    return data.results || [];
+  } catch (error) {
+    console.error('Error fetching popular people:', error.message);
+    return [];
+  }
+}
+
+// Fungsi untuk mendapatkan film dengan rating tertinggi
+export async function getTopRatedMovies(page = 1) {
+  try {
+    const data = await fetchApi(`/movie/top_rated?page=${page}`);
+    return data.results || [];
+  } catch (error) {
+    console.error('Error fetching top rated movies:', error.message);
+    return [];
+  }
+}
+
+// Fungsi untuk mendapatkan TV series dengan rating tertinggi
+export async function getTopRatedTvSeries(page = 1) {
+  try {
+    const data = await fetchApi(`/tv/top_rated?page=${page}`);
+    return data.results || [];
+  } catch (error) {
+    console.error('Error fetching top rated TV series:', error.message);
+    return [];
+  }
+}
+
+// Fungsi untuk mendapatkan film yang sedang tayang di bioskop
+export async function getNowPlayingMovies(page = 1) {
+  try {
+    const data = await fetchApi(`/movie/now_playing?page=${page}`);
+    return data.results || [];
+  } catch (error) {
+    console.error('Error fetching now playing movies:', error.message);
+    return [];
+  }
+}
+
+// Fungsi untuk mendapatkan film yang akan datang
+export async function getUpcomingMovies(page = 1) {
+  try {
+    const data = await fetchApi(`/movie/upcoming?page=${page}`);
+    return data.results || [];
+  } catch (error) {
+    console.error('Error fetching upcoming movies:', error.message);
+    return [];
+  }
+}
+
+// Fungsi untuk mendapatkan TV series yang sedang tayang
+export async function getOnTheAirTvSeries(page = 1) {
+  try {
+    const data = await fetchApi(`/tv/on_the_air?page=${page}`);
+    return data.results || [];
+  } catch (error) {
+    console.error('Error fetching on the air TV series:', error.message);
+    return [];
+  }
+}
+
+// Fungsi untuk mendapatkan TV series yang akan datang
+export async function getAiringTodayTvSeries(page = 1) {
+  try {
+    const data = await fetchApi(`/tv/airing_today?page=${page}`);
+    return data.results || [];
+  } catch (error) {
+    console.error('Error fetching airing today TV series:', error.message);
+    return [];
+  }
+}
+
+// Fungsi untuk mendapatkan film berdasarkan perusahaan produksi
+export async function getMoviesByProductionCompany(companyId, page = 1) {
+  try {
+    const data = await fetchApi(`/discover/movie?with_companies=${companyId}&page=${page}`);
+    return data.results || [];
+  } catch (error) {
+    console.error(`Error fetching movies by company ID ${companyId}:`, error.message);
+    return [];
+  }
+}
+
+// Fungsi untuk mendapatkan rekomendasi film
+export async function getMovieRecommendations(movieId, page = 1) {
+  try {
+    const data = await fetchApi(`/movie/${movieId}/recommendations?page=${page}`);
+    return data.results || [];
+  } catch (error) {
+    console.error(`Error fetching movie recommendations for ID ${movieId}:`, error.message);
+    return [];
+  }
+}
+
+// Fungsi untuk mendapatkan rekomendasi TV series
+export async function getTvSeriesRecommendations(tvId, page = 1) {
+  try {
+    const data = await fetchApi(`/tv/${tvId}/recommendations?page=${page}`);
+    return data.results || [];
+  } catch (error) {
+    console.error(`Error fetching TV series recommendations for ID ${tvId}:`, error.message);
     return [];
   }
 }
@@ -351,47 +494,474 @@ export const createSlug = (title) => {
   if (!title) return '';
   
   return title
-    .toString()
     .toLowerCase()
-    .normalize('NFD') // Memisahkan diakritik
-    .replace(/[\u0300-\u036f]/g, '') // Hapus diakritik
-    .replace(/[^a-z0-9\s-]/g, '') // Hapus karakter tidak valid
+    .replace(/[^a-z0-9 -]/g, '') // Hapus karakter tidak valid
     .replace(/\s+/g, '-') // Ganti spasi dengan dash
     .replace(/-+/g, '-') // Gabungkan multiple dash
     .trim();
 };
 
-// Helper function untuk mendapatkan URL gambar yang aman
-export const getImageUrl = (path, size = 'w500') => {
-  if (!path) return '/images/placeholder.jpg';
-  return `https://image.tmdb.org/t/p/${size}${path}`;
+// Fungsi untuk mendapatkan film berdasarkan rentang tanggal rilis
+export async function getMoviesByReleaseDate(startDate, endDate, page = 1) {
+  try {
+    const data = await fetchApi(`/discover/movie?primary_release_date.gte=${startDate}&primary_release_date.lte=${endDate}&page=${page}`);
+    return {
+      results: data.results || [],
+      total_pages: data.total_pages || 1,
+      total_results: data.total_results || 0
+    };
+  } catch (error) {
+    console.error(`Error fetching movies from ${startDate} to ${endDate}:`, error.message);
+    return { results: [], total_pages: 0, total_results: 0 };
+  }
+}
+
+// Fungsi untuk mendapatkan TV series berdasarkan rentang tanggal tayang pertama
+export async function getTvSeriesByFirstAirDate(startDate, endDate, page = 1) {
+  try {
+    const data = await fetchApi(`/discover/tv?first_air_date.gte=${startDate}&first_air_date.lte=${endDate}&page=${page}`);
+    return {
+      results: data.results || [],
+      total_pages: data.total_pages || 1,
+      total_results: data.total_results || 0
+    };
+  } catch (error) {
+    console.error(`Error fetching TV series from ${startDate} to ${endDate}:`, error.message);
+    return { results: [], total_pages: 0, total_results: 0 };
+  }
+}
+
+// Fungsi untuk mendapatkan film dengan rating tertentu
+export async function getMoviesByRating(minRating = 7.0, page = 1) {
+  try {
+    const data = await fetchApi(`/discover/movie?vote_average.gte=${minRating}&vote_count.gte=100&page=${page}`);
+    return {
+      results: data.results || [],
+      total_pages: data.total_pages || 1,
+      total_results: data.total_results || 0
+    };
+  } catch (error) {
+    console.error(`Error fetching movies with rating >= ${minRating}:`, error.message);
+    return { results: [], total_pages: 0, total_results: 0 };
+  }
+}
+
+// Fungsi untuk mendapatkan film berdasarkan bahasa
+export async function getMoviesByLanguage(language = 'en', page = 1) {
+  try {
+    const data = await fetchApi(`/discover/movie?with_original_language=${language}&page=${page}`);
+    return {
+      results: data.results || [],
+      total_pages: data.total_pages || 1,
+      total_results: data.total_results || 0
+    };
+  } catch (error) {
+    console.error(`Error fetching movies in ${language}:`, error.message);
+    return { results: [], total_pages: 0, total_results: 0 };
+  }
+}
+
+// Fungsi untuk mendapatkan film berdasarkan negara asal
+export async function getMoviesByCountry(countryCode = 'US', page = 1) {
+  try {
+    const data = await fetchApi(`/discover/movie?with_origin_country=${countryCode}&page=${page}`);
+    return {
+      results: data.results || [],
+      total_pages: data.total_pages || 1,
+      total_results: data.total_results || 0
+    };
+  } catch (error) {
+    console.error(`Error fetching movies from ${countryCode}:`, error.message);
+    return { results: [], total_pages: 0, total_results: 0 };
+  }
+}
+
+// Fungsi untuk mendapatkan film dengan kata kunci
+export async function getMoviesByKeywords(keywordIds, page = 1) {
+  try {
+    const keywordString = Array.isArray(keywordIds) ? keywordIds.join(',') : keywordIds;
+    const data = await fetchApi(`/discover/movie?with_keywords=${keywordString}&page=${page}`);
+    return {
+      results: data.results || [],
+      total_pages: data.total_pages || 1,
+      total_results: data.total_results || 0
+    };
+  } catch (error) {
+    console.error(`Error fetching movies with keywords ${keywordIds}:`, error.message);
+    return { results: [], total_pages: 0, total_results: 0 };
+  }
+}
+
+// Fungsi untuk mencari kata kunci
+export async function searchKeywords(query, page = 1) {
+  if (!query || query.trim() === '') {
+    return [];
+  }
+  
+  try {
+    const data = await fetchApi(`/search/keyword?query=${encodeURIComponent(query)}&page=${page}`);
+    return data.results || [];
+  } catch (error) {
+    console.error(`Error searching keywords for '${query}':`, error.message);
+    return [];
+  }
+}
+
+// Fungsi untuk mendapatkan koleksi film
+export async function getCollectionById(collectionId) {
+  try {
+    const data = await fetchApi(`/collection/${collectionId}`);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching collection ${collectionId}:`, error.message);
+    return null;
+  }
+}
+
+// Fungsi untuk mendapatkan perusahaan produksi
+export async function getProductionCompany(companyId) {
+  try {
+    const data = await fetchApi(`/company/${companyId}`);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching production company ${companyId}:`, error.message);
+    return null;
+  }
+}
+
+// Fungsi untuk mencari perusahaan produksi
+export async function searchProductionCompanies(query, page = 1) {
+  if (!query || query.trim() === '') {
+    return [];
+  }
+  
+  try {
+    const data = await fetchApi(`/search/company?query=${encodeURIComponent(query)}&page=${page}`);
+    return data.results || [];
+  } catch (error) {
+    console.error(`Error searching companies for '${query}':`, error.message);
+    return [];
+  }
+}
+
+// Fungsi untuk mendapatkan film berdasarkan multiple criteria
+export async function getAdvancedMovieSearch(params = {}) {
+  try {
+    const {
+      genres = '',
+      year = '',
+      rating = '',
+      keywords = '',
+      companies = '',
+      sortBy = 'popularity.desc',
+      page = 1
+    } = params;
+    
+    let queryString = `?page=${page}&sort_by=${sortBy}`;
+    
+    if (genres) queryString += `&with_genres=${genres}`;
+    if (year) queryString += `&primary_release_year=${year}`;
+    if (rating) queryString += `&vote_average.gte=${rating}`;
+    if (keywords) queryString += `&with_keywords=${keywords}`;
+    if (companies) queryString += `&with_companies=${companies}`;
+    
+    const data = await fetchApi(`/discover/movie${queryString}`);
+    return {
+      results: data.results || [],
+      total_pages: data.total_pages || 1,
+      total_results: data.total_results || 0
+    };
+  } catch (error) {
+    console.error('Error in advanced movie search:', error.message);
+    return { results: [], total_pages: 0, total_results: 0 };
+  }
+}
+
+// Fungsi untuk mendapatkan TV series berdasarkan multiple criteria
+export async function getAdvancedTvSearch(params = {}) {
+  try {
+    const {
+      genres = '',
+      year = '',
+      rating = '',
+      networks = '',
+      sortBy = 'popularity.desc',
+      page = 1
+    } = params;
+    
+    let queryString = `?page=${page}&sort_by=${sortBy}`;
+    
+    if (genres) queryString += `&with_genres=${genres}`;
+    if (year) queryString += `&first_air_date_year=${year}`;
+    if (rating) queryString += `&vote_average.gte=${rating}`;
+    if (networks) queryString += `&with_networks=${networks}`;
+    
+    const data = await fetchApi(`/discover/tv${queryString}`);
+    return {
+      results: data.results || [],
+      total_pages: data.total_pages || 1,
+      total_results: data.total_results || 0
+    };
+  } catch (error) {
+    console.error('Error in advanced TV search:', error.message);
+    return { results: [], total_pages: 0, total_results: 0 };
+  }
+}
+
+// Fungsi untuk mendapatkan watch providers film
+export async function getMovieWatchProviders(movieId) {
+  try {
+    const data = await fetchApi(`/movie/${movieId}/watch/providers`);
+    return data.results || {};
+  } catch (error) {
+    console.error(`Error fetching watch providers for movie ${movieId}:`, error.message);
+    return {};
+  }
+}
+
+// Fungsi untuk mendapatkan watch providers TV series
+export async function getTvSeriesWatchProviders(tvId) {
+  try {
+    const data = await fetchApi(`/tv/${tvId}/watch/providers`);
+    return data.results || {};
+  } catch (error) {
+    console.error(`Error fetching watch providers for TV series ${tvId}:`, error.message);
+    return {};
+  }
+}
+
+// Fungsi untuk mendapatkan film berdasarkan watch provider
+export async function getMoviesByWatchProvider(providerId, page = 1) {
+  try {
+    const data = await fetchApi(`/discover/movie?with_watch_providers=${providerId}&watch_region=US&page=${page}`);
+    return {
+      results: data.results || [],
+      total_pages: data.total_pages || 1,
+      total_results: data.total_results || 0
+    };
+  } catch (error) {
+    console.error(`Error fetching movies for provider ${providerId}:`, error.message);
+    return { results: [], total_pages: 0, total_results: 0 };
+  }
+}
+
+// Fungsi untuk mendapatkan episode details TV series
+export async function getTvSeriesEpisodeDetails(tvId, seasonNumber, episodeNumber) {
+  try {
+    const data = await fetchApi(`/tv/${tvId}/season/${seasonNumber}/episode/${episodeNumber}`);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching episode details for ${tvId} S${seasonNumber}E${episodeNumber}:`, error.message);
+    return null;
+  }
+}
+
+// Fungsi untuk mendapatkan season details TV series
+export async function getTvSeriesSeasonDetails(tvId, seasonNumber) {
+  try {
+    const data = await fetchApi(`/tv/${tvId}/season/${seasonNumber}`);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching season details for ${tvId} season ${seasonNumber}:`, error.message);
+    return null;
+  }
+}
+
+// Fungsi untuk mendapatkan images film
+export async function getMovieImages(movieId) {
+  try {
+    const data = await fetchApi(`/movie/${movieId}/images`);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching images for movie ${movieId}:`, error.message);
+    return null;
+  }
+}
+
+// Fungsi untuk mendapatkan images TV series
+export async function getTvSeriesImages(tvId) {
+  try {
+    const data = await fetchApi(`/tv/${tvId}/images`);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching images for TV series ${tvId}:`, error.message);
+    return null;
+  }
+}
+
+// Fungsi untuk mendapatkan images person
+export async function getPersonImages(personId) {
+  try {
+    const data = await fetchApi(`/person/${personId}/images`);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching images for person ${personId}:`, error.message);
+    return null;
+  }
+}
+
+// Fungsi untuk mendapatkan external IDs
+export async function getMovieExternalIds(movieId) {
+  try {
+    const data = await fetchApi(`/movie/${movieId}/external_ids`);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching external IDs for movie ${movieId}:`, error.message);
+    return null;
+  }
+}
+
+// Fungsi untuk mendapatkan external IDs TV series
+export async function getTvSeriesExternalIds(tvId) {
+  try {
+    const data = await fetchApi(`/tv/${tvId}/external_ids`);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching external IDs for TV series ${tvId}:`, error.message);
+    return null;
+  }
+}
+
+// Fungsi untuk mendapatkan external IDs person
+export async function getPersonExternalIds(personId) {
+  try {
+    const data = await fetchApi(`/person/${personId}/external_ids`);
+    return data;
+  } catch (error) {
+    console.error(`Error fetching external IDs for person ${personId}:`, error.message);
+    return null;
+  }
+}
+
+// FUNGSI BARU YANG DIPERLUKAN UNTUK RANKINGS
+
+// Fungsi untuk mendapatkan film trending mingguan
+export async function getTrendingMoviesWeekly(page = 1) {
+  try {
+    const data = await fetchApi(`/trending/movie/week?page=${page}`);
+    return {
+      results: data.results || [],
+      total_pages: data.total_pages || 1,
+      total_results: data.total_results || 0
+    };
+  } catch (error) {
+    console.error('Error fetching weekly trending movies:', error.message);
+    return { results: [], total_pages: 0, total_results: 0 };
+  }
+}
+
+// Fungsi untuk mendapatkan TV series trending mingguan
+export async function getTrendingTvSeriesWeekly(page = 1) {
+  try {
+    const data = await fetchApi(`/trending/tv/week?page=${page}`);
+    return {
+      results: data.results || [],
+      total_pages: data.total_pages || 1,
+      total_results: data.total_results || 0
+    };
+  } catch (error) {
+    console.error('Error fetching weekly trending TV series:', error.message);
+    return { results: [], total_pages: 0, total_results: 0 };
+  }
+}
+
+// Fungsi untuk mendapatkan film populer
+export async function getPopularMovies(page = 1) {
+  try {
+    const data = await fetchApi(`/movie/popular?page=${page}`);
+    return {
+      results: data.results || [],
+      total_pages: data.total_pages || 1,
+      total_results: data.total_results || 0
+    };
+  } catch (error) {
+    console.error('Error fetching popular movies:', error.message);
+    return { results: [], total_pages: 0, total_results: 0 };
+  }
+}
+
+// Fungsi untuk mendapatkan TV series populer
+export async function getPopularTvSeries(page = 1) {
+  try {
+    const data = await fetchApi(`/tv/popular?page=${page}`);
+    return {
+      results: data.results || [],
+      total_pages: data.total_pages || 1,
+      total_results: data.total_results || 0
+    };
+  } catch (error) {
+    console.error('Error fetching popular TV series:', error.message);
+    return { results: [], total_pages: 0, total_results: 0 };
+  }
+}
+
+// Export default untuk kemudahan import
+const apiFunctions = {
+  getMovieById,
+  getTvSeriesById,
+  getMovieVideos,
+  getTvSeriesVideos,
+  getMovieCredits,
+  getMovieReviews,
+  getTvSeriesCredits,
+  getTvSeriesReviews,
+  searchMoviesAndTv,
+  getMoviesByCategory,
+  getTvSeriesByCategory,
+  getSimilarMovies,
+  getSimilarTvSeries,
+  getMovieByTitle,
+  getTvSeriesByTitle,
+  getMovieGenres,
+  getTvSeriesGenres,
+  getMoviesByGenre,
+  getTvSeriesByGenre,
+  getTrendingMoviesDaily,
+  getTrendingTvSeriesDaily,
+  getMoviesByYear,
+  getMoviesByDecade,
+  getPersonById,
+  getPersonMovieCredits,
+  getPersonTvCredits,
+  searchPeople,
+  getPopularPeople,
+  getTopRatedMovies,
+  getTopRatedTvSeries,
+  getNowPlayingMovies,
+  getUpcomingMovies,
+  getOnTheAirTvSeries,
+  getAiringTodayTvSeries,
+  getMoviesByProductionCompany,
+  getMovieRecommendations,
+  getTvSeriesRecommendations,
+  createSlug,
+  getMoviesByReleaseDate,
+  getTvSeriesByFirstAirDate,
+  getMoviesByRating,
+  getMoviesByLanguage,
+  getMoviesByCountry,
+  getMoviesByKeywords,
+  searchKeywords,
+  getCollectionById,
+  getProductionCompany,
+  searchProductionCompanies,
+  getAdvancedMovieSearch,
+  getAdvancedTvSearch,
+  getMovieWatchProviders,
+  getTvSeriesWatchProviders,
+  getMoviesByWatchProvider,
+  getTvSeriesEpisodeDetails,
+  getTvSeriesSeasonDetails,
+  getMovieImages,
+  getTvSeriesImages,
+  getPersonImages,
+  getMovieExternalIds,
+  getTvSeriesExternalIds,
+  getPersonExternalIds,
+  getTrendingMoviesWeekly,
+  getTrendingTvSeriesWeekly,
+  getPopularMovies,
+  getPopularTvSeries
 };
 
-// Fungsi untuk test koneksi API
-export const testApiConnection = async () => {
-  try {
-    console.log('Testing TMDB API connection...');
-    const testUrl = `https://api.themoviedb.org/3/configuration?api_key=${apiKey}`;
-    
-    const response = await fetch(testUrl);
-    const contentType = response.headers.get('content-type');
-    
-    if (response.ok && contentType && contentType.includes('application/json')) {
-      const data = await response.json();
-      console.log('✅ TMDB API connection successful');
-      return { success: true, data };
-    } else {
-      const text = await response.text();
-      console.error('❌ TMDB API connection failed:', {
-        status: response.status,
-        statusText: response.statusText,
-        contentType: contentType,
-        preview: text.substring(0, 200)
-      });
-      return { success: false, error: `Status: ${response.status}` };
-    }
-  } catch (error) {
-    console.error('❌ TMDB API connection error:', error.message);
-    return { success: false, error: error.message };
-  }
-};
+export default apiFunctions;

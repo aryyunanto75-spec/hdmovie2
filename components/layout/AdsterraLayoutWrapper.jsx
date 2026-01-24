@@ -15,12 +15,12 @@ export default function AdsterraLayoutWrapper({ children }) {
       const scripts = [
         {
           id: 'adsterra-native-banner',
-          src: '//fundingfashioned.com/ae067c1fe6d2e43f32b30f43ee3516d5/invoke.js',
+          src: '//fundingfashioned.com/e744c8cfb1f18a65e45ce887f6801040/invoke.js',
           attributes: { 'data-cfasync': 'false' }
         },
         {
           id: 'adsterra-social-bar',
-          src: '//fundingfashioned.com/52/cc/03/52cc03cf4af4c86fe0e87185cb1f75ab.js'
+          src: '//fundingfashioned.com/e5/ef/01/e5ef0171b8f15ded66dda2c416c36bd7.js'
         }
         // ❌ POPUNDER DIHAPUS
       ];

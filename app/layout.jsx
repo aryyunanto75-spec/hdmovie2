@@ -1,22 +1,24 @@
 import './globals.css';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
-import AdsterraLayoutWrapper from '../components/AdsterraLayoutWrapper';
+import AdsterraLayoutWrapper from '../components/layout/AdsterraLayoutWrapper'; // ✅ PATH DIPERBAIKI
+import AdBanner from '../components/ads/AdBanner'; // ✅ Komponen baru untuk banner
 
 export const metadata = {
-  title: 'Hdmovie2 | Watch Movie Stream Movies and Tv Series Free ',
-  description: 'Hdmovie2 is your one-stop destination for free movies, TV shows, and web series. Download thousands of titles in HD quality, with unlimited access to the latest blockbusters and trending series. Start your free entertainment journey today! ',
+  title: 'HDMovie2 | Watch Movies, Stream TV Series Free - Complete Movie Database',
+  description: 'HDMovie2 is your ultimate movie database with 10,000+ movies, 5,000+ TV series, actor profiles, genre pages, and yearly archives. Discover, stream, and enjoy cinematic excellence with our comprehensive entertainment platform.',
+  keywords: 'movies, tv series, streaming, movie database, actors, genres, rankings, movie archives',
   openGraph: {
-    title: 'Hdmovie2 | Watch Movie Stream Movies and Tv Series Free',
-    description: 'Hdmovie2 is your one-stop destination for free movies, TV shows, and web series. Download thousands of titles in HD quality, with unlimited access to the latest blockbusters and trending series. Start your free entertainment journey today! ',
+    title: 'HDMovie2 | Complete Movie & TV Series Database',
+    description: 'Your ultimate destination for movies, TV series, actor profiles, and streaming information. Explore genres, yearly archives, and top rankings.',
     url: 'https://hdmovie2-uk.netlify.app',
-    siteName: 'Hdmovie2',
+    siteName: 'HDMovie2',
     images: [
       {
         url: 'https://live.staticflickr.com/65535/54812181460_747a3f7596_b.jpg',
         width: 1200,
         height: 630,
-        alt: 'Hdmovie2 - Watch Movie Stream Movies and Tv Series Free',
+        alt: 'HDMovie2 - Complete Movie Database',
       },
     ],
     locale: 'en_US',
@@ -26,8 +28,8 @@ export const metadata = {
     card: 'summary_large_image',
     site: '@WatchStream123',
     creator: '@WatchStream123',
-    title: 'Hdmovie2 | Watch Movie Stream Movies and Tv Series Free',
-    description: 'Hdmovie2 is your one-stop destination for free movies, TV shows, and web series. Download thousands of titles in HD quality, with unlimited access to the latest blockbusters and trending series. Start your free entertainment journey today!',
+    title: 'HDMovie2 | Complete Movie & TV Series Database',
+    description: 'Explore 10,000+ movies, 5,000+ TV series, actor profiles, and streaming guides on HDMovie2.',
     images: ['https://live.staticflickr.com/65535/54812181460_747a3f7596_b.jpg'],
   },
   // Tambahkan tag meta eksplisit untuk Facebook
@@ -42,6 +44,23 @@ export default function RootLayout({ children }) {
 	  <head>
         {/* Tag verifikasi Google Search Console */}
         <meta name="google-site-verification" content="xpdWaE26t_teP672MbP02yUi2aNbH65Cpz9hk0ATo5o" />
+        {/* Schema.org markup untuk Movie Database */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "MovieDatabase",
+              "name": "HDMovie2",
+              "description": "Complete movie and TV series database with streaming information",
+              "url": "https://hdmovie2-uk.netlify.app",
+              "logo": "https://live.staticflickr.com/65535/54812181460_747a3f7596_b.jpg",
+              "sameAs": [
+                "https://hdmovie2-uk.netlify.app"
+              ]
+            })
+          }}
+        />
       </head>
       <body>
         <AdsterraLayoutWrapper>
@@ -49,9 +68,24 @@ export default function RootLayout({ children }) {
             <header className="w-full max-w-7xl mx-auto px-4 py-4 sticky top-0 z-50 bg-slate-900 shadow-lg">
               <Navbar />
             </header>
+            
+            {/* ✅ Banner 728x90 di bawah navbar */}
+            <div className="w-full bg-slate-900 py-2">
+              <div className="max-w-7xl mx-auto px-4 flex justify-center">
+                <AdBanner 
+                  adId="728x90_banner_navbar"
+                  scriptKey="8929bcde451b4033e23ef96e18ba95c4"
+                  height={90}
+                  width={728}
+                  className="rounded-lg overflow-hidden shadow-lg"
+                />
+              </div>
+            </div>
+            
             <main className="flex-grow w-full max-w-7xl mx-auto px-4 py-8 mt-2">
               {children}
             </main>
+            
             <footer className="w-full max-w-7xl mx-auto px-4 py-8">
               {/* Tempatkan div Native Banner di sini, sebelum Footer */}
               <div id="container-e744c8cfb1f18a65e45ce887f6801040"></div>
